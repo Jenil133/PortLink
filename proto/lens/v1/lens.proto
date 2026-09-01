@@ -1,0 +1,165 @@
+syntax = "proto3";
+
+package lens.v1;
+
+option go_package = "github.com/portlink/lens/server/internal/gen/lens/v1;lensv1";
+
+// ---------- Bus message: feeder -> NATS -> ingest and gateway ----------
+message VesselSample {
+  uint32 mmsi = 1;
+  int64 ts_ms = 2;            // unix milliseconds, UTC
+  double lat = 3;
+  double lon = 4;
+  float sog_kn = 5;           // speed over ground, knots
+  float cog_deg = 6;          // course over ground, degrees clockwise from north
+  float heading_deg = 7;
+  string name = 8;
+  uint32 vessel_type = 9;     // AIS vessel type code
+  float engine_rpm = 10;
+  float fuel_rate_lph = 11;   // litres per hour
+  float engine_temp_c = 12;
+  float fuel_level_pct = 13;
+}
+
+// ---------- Client -> Gateway ----------
+enum Mode {
+  MODE_UNSPECIFIED = 0;
+  MODE_LIVE = 1;
+  MODE_HISTORY = 2;
+}
+
+message BBox {
+  double min_lon = 1;
+  double min_lat = 2;
+  double max_lon = 3;
+  double max_lat = 4;
+}
+
+// The client sends its complete view state every time anything changes.
+// The server replaces the previous subscription atomically.
+message Subscribe {
+  uint32 view_id = 1;            // client counter, echoed in frames, used only to measure seek latency
+  BBox bbox = 2;
+  float zoom = 3;
+  Mode mode = 4;                 // Phase 2
+  int64 cursor_ms = 5;           // Phase 2: history cursor
+  float playback_rate = 6;       // Phase 2: 0 = paused, 1 = real time, 10 = 10x
+  uint32 selected_mmsi = 7;      // Phase 2: 0 = none
+  int64 series_window_ms = 8;    // Phase 2: 0 = no series
+  uint32 series_max_points = 9;  // Phase 2
+  bool firehose = 10;            // Phase 3: baseline mode, no filtering
+}
+
+message Ping { int64 client_time_ms = 1; }
+
+message ClientMessage {
+  oneof msg {
+    Subscribe subscribe = 1;
+    Ping ping = 2;
+  }
+}
+
+// ---------- Gateway -> Client ----------
+enum Tier {
+  TIER_UNSPECIFIED = 0;
+  TIER_LIVE = 1;   // in-memory state
+  TIER_1S = 2;
+  TIER_1M = 3;
+  TIER_10M = 4;
+}
+
+// Every field except mmsi is optional. An unset field means "unchanged".
+// Values are quantized integers so that "changed" is well defined.
+message VesselDelta {
+  uint32 mmsi = 1;
+  optional sint32 lat_e6 = 2;          // degrees * 1e6
+  optional sint32 lon_e6 = 3;
+  optional uint32 sog_dkn = 4;         // knots * 10
+  optional uint32 cog_ddeg = 5;        // degrees * 10
+  optional uint32 heading_deg = 6;
+  optional string name = 7;
+  optional uint32 vessel_type = 8;
+  optional uint32 engine_rpm = 9;
+  optional uint32 fuel_rate_dlph = 10; // L/h * 10
+  optional uint32 engine_temp_dc = 11; // deg C * 10
+  optional uint32 fuel_level_dpct = 12;// percent * 10
+}
+
+message Cluster {
+  sint32 lat_e6 = 1;
+  sint32 lon_e6 = 2;
+  uint32 count = 3;
+}
+
+message Frame {
+  uint32 view_id = 1;
+  uint32 seq = 2;                 // per-connection counter
+  int64 ts_ms = 3;                // data time this frame represents
+  bool snapshot = 4;              // true: client must clear its vessel state first
+  Tier tier = 5;
+  repeated VesselDelta vessels = 6;
+  repeated uint32 removed = 7;    // mmsi that left the view
+  repeated Cluster clusters = 8;  // Phase 3
+  bool clustered = 9;             // Phase 3
+  uint32 dropped_total = 10;      // Phase 2: ticks conflated for this connection
+  uint32 in_view = 11;            // vessels currently in the view
+}
+
+enum Metric {
+  METRIC_UNSPECIFIED = 0;
+  METRIC_SOG = 1;
+  METRIC_ENGINE_RPM = 2;
+  METRIC_FUEL_RATE = 3;
+  METRIC_ENGINE_TEMP = 4;
+  METRIC_FUEL_LEVEL = 5;
+}
+
+message MetricSeries {
+  Metric metric = 1;
+  repeated uint32 t_offset_s = 2; // seconds after Series.start_ms
+  repeated float values = 3;
+}
+
+message TrackPoint {
+  uint32 t_offset_s = 1;
+  sint32 lat_e6 = 2;
+  sint32 lon_e6 = 3;
+}
+
+message Series {
+  uint32 view_id = 1;
+  uint32 mmsi = 2;
+  int64 start_ms = 3;
+  int64 end_ms = 4;
+  Tier tier = 5;
+  uint32 raw_points = 6;          // row count before downsampling
+  repeated MetricSeries metrics = 7;
+  repeated TrackPoint track = 8;
+}
+
+message Hello {
+  uint32 protocol_version = 1;    // always 1
+  int64 server_time_ms = 2;
+  int64 history_start_ms = 3;     // Phase 2. Phase 1 sends server_time_ms.
+  uint32 live_tick_ms = 4;
+}
+
+message Pong {
+  int64 client_time_ms = 1;
+  int64 server_time_ms = 2;
+}
+
+message ServerError {
+  uint32 code = 1;                // 1 BAD_MESSAGE, 2 BAD_SUBSCRIBE, 3 HISTORY_UNAVAILABLE, 4 RATE_LIMITED
+  string message = 2;
+}
+
+message ServerMessage {
+  oneof msg {
+    Hello hello = 1;
+    Frame frame = 2;
+    Series series = 3;
+    Pong pong = 4;
+    ServerError error = 5;
+  }
+}
