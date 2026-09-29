@@ -42,3 +42,27 @@ SELECT mmsi,
 FROM vessel_samples
 GROUP BY mmsi, bucket
 WITH NO DATA;
+
+-- Refresh policies. start_offset (8 h) covers the 6 h backfill and stays inside the
+-- 12 h raw retention, so a refresh never wipes buckets whose raw rows were already dropped.
+SELECT add_continuous_aggregate_policy('samples_1s',
+    start_offset => INTERVAL '8 hours', end_offset => INTERVAL '10 seconds',
+    schedule_interval => INTERVAL '30 seconds', if_not_exists => TRUE);
+SELECT add_continuous_aggregate_policy('samples_1m',
+    start_offset => INTERVAL '8 hours', end_offset => INTERVAL '1 minute',
+    schedule_interval => INTERVAL '1 minute', if_not_exists => TRUE);
+SELECT add_continuous_aggregate_policy('samples_10m',
+    start_offset => INTERVAL '8 hours', end_offset => INTERVAL '10 minutes',
+    schedule_interval => INTERVAL '5 minutes', if_not_exists => TRUE);
+
+-- The coarser aggregates are small, keep them a full day. samples_1s has as many rows as the
+-- raw table at 1 Hz, so it keeps the raw table's 12 hours, which is as far as history reaches.
+SELECT add_retention_policy('samples_1s',  INTERVAL '12 hours', schedule_interval => INTERVAL '1 hour', if_not_exists => TRUE);
+SELECT add_retention_policy('samples_1m',  INTERVAL '24 hours', if_not_exists => TRUE);
+SELECT add_retention_policy('samples_10m', INTERVAL '24 hours', if_not_exists => TRUE);
+
+-- Retention jobs default to a daily schedule, which would let 1 Hz data pile up for a day
+-- past its limit. Check the raw table hourly instead.
+SELECT alter_job(job_id, schedule_interval => INTERVAL '1 hour')
+FROM timescaledb_information.jobs
+WHERE proc_name = 'policy_retention' AND hypertable_name = 'vessel_samples';
