@@ -6,6 +6,7 @@ require (
 	github.com/coder/websocket v1.8.15
 	github.com/jackc/pgx/v5 v5.12.0
 	github.com/nats-io/nats.go v1.55.0
+	github.com/uber/h3-go/v4 v4.5.0
 	google.golang.org/protobuf v1.36.12
 )
 
