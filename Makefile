@@ -1,7 +1,7 @@
 include .env
 export
 
-.PHONY: infra migrate proto feeder ingest gateway web backfill psql
+.PHONY: infra migrate refresh proto feeder ingest gateway web backfill psql
 
 infra:            ## start NATS and TimescaleDB
 	docker compose up -d nats timescaledb
@@ -15,6 +15,12 @@ migrate:          ## wait for TimescaleDB, then apply every SQL file in order (a
 	@for f in db/migrations/*.sql; do \
 	  echo "applying $$f"; \
 	  docker compose exec -T timescaledb psql -v ON_ERROR_STOP=1 -U $(POSTGRES_USER) -d $(POSTGRES_DB) < $$f || exit 1; \
+	done
+
+refresh:          ## materialize the aggregates right now instead of waiting for the policies
+	@for v in samples_1s samples_1m samples_10m; do \
+	  docker compose exec -T timescaledb psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) \
+	    -c "CALL refresh_continuous_aggregate('$$v', now() - INTERVAL '8 hours', now() - INTERVAL '10 minutes');" || exit 1; \
 	done
 
 proto:            ## regenerate Go and TS code from proto/
