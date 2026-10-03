@@ -3,21 +3,30 @@ package gateway
 import (
 	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/coder/websocket"
+
+	"github.com/portlink/lens/server/internal/store"
 )
 
 type Config struct {
 	Addr           string
-	AllowedOrigins []string // host:port patterns passed to websocket.AcceptOptions.OriginPatterns
+	AllowedOrigins []string      // host:port patterns passed to websocket.AcceptOptions.OriginPatterns
+	LiveTick       time.Duration // from LIVE_TICK_MS, default 100 ms, clamped to [20 ms, 1 s]
+	HistoryHours   int           // from HISTORY_HOURS, default 6
 }
 
 type Server struct {
 	cfg   Config
 	world *World
+	st    *store.Store
+	live  *liveSource
 }
 
-func NewServer(cfg Config, world *World) *Server { return &Server{cfg: cfg, world: world} }
+func NewServer(cfg Config, world *World, st *store.Store) *Server {
+	return &Server{cfg: cfg, world: world, st: st, live: &liveSource{world: world}}
+}
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
@@ -38,6 +47,5 @@ func (s *Server) handleWS(w http.ResponseWriter, r *http.Request) {
 		return // Accept already wrote the HTTP error
 	}
 	conn.SetReadLimit(4096) // client messages are tiny, anything bigger is abuse
-	c := &client{conn: conn, srv: s}
-	c.run(r.Context())
+	newClient(conn, s).run(r.Context())
 }
