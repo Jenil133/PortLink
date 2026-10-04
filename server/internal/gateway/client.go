@@ -13,6 +13,12 @@ import (
 	"github.com/portlink/lens/server/internal/model"
 )
 
+const (
+	probeEvery       = time.Second      // how often delivery is confirmed
+	probeTimeout     = 30 * time.Second // no answer for this long: the client is gone
+	maxUnconfirmedMs = 500              // no answer for this long: the client is behind
+)
+
 type client struct {
 	conn *websocket.Conn
 	srv  *Server
@@ -22,8 +28,9 @@ type client struct {
 	sub     *lensv1.Subscribe
 	subAtMs int64 // server time when sub arrived, base for the playback cursor
 
-	wake    chan struct{} // capacity 1: the bounded send buffer
-	dropped atomic.Uint32 // ticks that found the buffer full
+	wake      chan struct{} // capacity 1: the bounded send buffer
+	dropped   atomic.Uint32 // ticks that found the buffer full, or the client behind
+	probeAtMs atomic.Int64  // when the ping in flight was sent, 0 when none is
 
 	// Owned by the writer goroutine only. No locking needed.
 	sent       map[uint32]qState
@@ -53,11 +60,11 @@ func (c *client) run(parent context.Context) {
 	defer cancel()
 	defer c.conn.Close(websocket.StatusNormalClosure, "")
 
-	now := time.Now()
 	// Nothing reads this socket yet, so a stuck database must not be able to hold the handshake open.
 	hctx, hcancel := context.WithTimeout(ctx, 2*time.Second)
 	histStart, err := c.srv.st.HistoryStart(hctx, c.srv.cfg.HistoryHours)
 	hcancel()
+	now := time.Now() // after the query: the client sets its clock offset from this Hello
 	if err != nil {
 		histStart = now // history unavailable, the scrubber will have zero range
 	}
@@ -69,6 +76,7 @@ func (c *client) run(parent context.Context) {
 	}
 	go c.readLoop(ctx, cancel)
 	go c.tickLoop(ctx)
+	go c.probeLoop(ctx, cancel)
 	c.writeLoop(ctx)
 }
 
@@ -82,6 +90,10 @@ func (c *client) tickLoop(ctx context.Context) {
 		case <-ctx.Done():
 			return
 		case <-t.C:
+			if c.behind() {
+				c.dropped.Add(1)
+				continue
+			}
 			select {
 			case c.wake <- struct{}{}:
 			default:
@@ -89,6 +101,37 @@ func (c *client) tickLoop(ctx context.Context) {
 			}
 		}
 	}
+}
+
+// probeLoop keeps one WebSocket ping in flight. Socket buffers hide a slow reader: a write returns
+// as soon as the kernel has the bytes, and hundreds of KB of stale frames can pile up before a
+// write ever blocks. A ping is answered only after everything written before it has been read,
+// end to end and through any proxy, so while one is overdue the client counts as behind. Ticks
+// are then dropped here instead of queueing there, and the next frame jumps to the latest state.
+func (c *client) probeLoop(ctx context.Context, cancel context.CancelFunc) {
+	defer cancel()
+	t := time.NewTicker(probeEvery)
+	defer t.Stop()
+	for {
+		select {
+		case <-ctx.Done():
+			return
+		case <-t.C:
+		}
+		c.probeAtMs.Store(time.Now().UnixMilli())
+		pctx, pcancel := context.WithTimeout(ctx, probeTimeout)
+		err := c.conn.Ping(pctx)
+		pcancel()
+		c.probeAtMs.Store(0)
+		if err != nil {
+			return
+		}
+	}
+}
+
+func (c *client) behind() bool {
+	at := c.probeAtMs.Load()
+	return at != 0 && time.Now().UnixMilli()-at > maxUnconfirmedMs
 }
 
 func (c *client) readLoop(ctx context.Context, cancel context.CancelFunc) {
@@ -116,10 +159,13 @@ func (c *client) readLoop(ctx context.Context, cancel context.CancelFunc) {
 			c.sub, c.subAtMs = m.Subscribe, time.Now().UnixMilli()
 			c.mu.Unlock()
 			// Nudge the writer so a seek is answered immediately instead of at the next tick.
-			// Not counted as a drop if the buffer is already full.
-			select {
-			case c.wake <- struct{}{}:
-			default:
+			// Not counted as a drop if the buffer is already full. A client that is behind
+			// gets the new view with the first frame after it catches up.
+			if !c.behind() {
+				select {
+				case c.wake <- struct{}{}:
+				default:
+				}
 			}
 		case *lensv1.ClientMessage_Ping:
 			_ = c.send(ctx, &lensv1.ServerMessage{Msg: &lensv1.ServerMessage_Pong{Pong: &lensv1.Pong{
