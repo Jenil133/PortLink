@@ -68,15 +68,19 @@ func run() error {
 	world := gateway.NewWorld()
 
 	// Bootstrap so the map is not empty until the first samples arrive. Failing here only costs
-	// up to one second of an empty map, so it is a warning.
-	states, err := st.LatestStates(ctx)
+	// up to one second of an empty map, so it is a warning, and a stuck database must not be able
+	// to keep the gateway from starting.
+	bctx, bcancel := context.WithTimeout(ctx, 5*time.Second)
+	states, err := st.LatestStates(bctx)
+	bcancel()
 	if err != nil {
 		slog.Warn("bootstrap from database failed", "err", err)
+	} else {
+		slog.Info("bootstrapped from database", "vessels", len(states))
 	}
 	for _, s := range states {
 		world.Upsert(s)
 	}
-	slog.Info("bootstrapped from database", "vessels", len(states))
 
 	// Core subscription. The callback runs on a single goroutine per subscription, in order.
 	sub, err := nc.Subscribe(bus.SubjectSamples+".>", func(m *nats.Msg) {
