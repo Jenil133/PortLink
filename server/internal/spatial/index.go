@@ -61,12 +61,9 @@ func (ix *Index) removeFrom(cell h3.Cell, mmsi uint32) {
 }
 
 // Candidates calls visit for every vessel in cells that may overlap the box.
-// It returns false when the box is too large (or crosses the antimeridian) and the caller
+// It returns false when the box is too large, or reaches the antimeridian or a pole, and the caller
 // should scan all vessels instead. Candidates are a superset: the caller still checks the exact box.
 func (ix *Index) Candidates(b model.BBox, visit func(mmsi uint32)) bool {
-	if b.MinLon < -180 || b.MaxLon > 180 {
-		return false
-	}
 	midLat := (b.MinLat + b.MaxLat) / 2
 	cosLat := math.Max(0.2, math.Cos(midLat*math.Pi/180))
 	wKm := (b.MaxLon - b.MinLon) * 111.32 * cosLat
@@ -76,9 +73,16 @@ func (ix *Index) Candidates(b model.BBox, visit func(mmsi uint32)) bool {
 	}
 	// PolygonToCells returns cells whose CENTER is inside the polygon. Padding the box by about
 	// one cell diameter (0.5 degrees) guarantees every cell that touches the real box is included.
-	padLat, padLon := 0.5, 0.5/cosLat
-	minLat, maxLat := math.Max(b.MinLat-padLat, -89), math.Min(b.MaxLat+padLat, 89)
-	minLon, maxLon := math.Max(b.MinLon-padLon, -180), math.Min(b.MaxLon+padLon, 180)
+	// A degree of longitude is shortest at the edge nearest a pole, so the pad is sized there.
+	edgeLat := math.Max(math.Abs(b.MinLat), math.Abs(b.MaxLat))
+	padLat, padLon := 0.5, 0.5/math.Cos(edgeLat*math.Pi/180)
+	minLat, maxLat := b.MinLat-padLat, b.MaxLat+padLat
+	minLon, maxLon := b.MinLon-padLon, b.MaxLon+padLon
+	// H3 reads a polygon wider than 180 degrees as crossing the antimeridian, and the cell holding
+	// a vessel near +-180 or a pole can have its center beyond the polygon.
+	if minLat <= -89 || maxLat >= 89 || minLon <= -180 || maxLon >= 180 || maxLon-minLon >= 180 {
+		return false
+	}
 	loop := h3.GeoLoop{
 		h3.NewLatLng(minLat, minLon), h3.NewLatLng(minLat, maxLon),
 		h3.NewLatLng(maxLat, maxLon), h3.NewLatLng(maxLat, minLon),
