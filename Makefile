@@ -19,8 +19,14 @@ migrate:          ## wait for TimescaleDB, then apply every SQL file in order (a
 
 refresh:          ## materialize the aggregates right now instead of waiting for the policies
 	@for v in samples_1s samples_1m samples_10m; do \
-	  docker compose exec -T timescaledb psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) \
-	    -c "CALL refresh_continuous_aggregate('$$v', now() - INTERVAL '8 hours', now() - INTERVAL '10 minutes');" || exit 1; \
+	  for i in $$(seq 1 30); do \
+	    out=$$(docker compose exec -T timescaledb psql -U $(POSTGRES_USER) -d $(POSTGRES_DB) \
+	      -c "CALL refresh_continuous_aggregate('$$v', now() - INTERVAL '8 hours', now() - INTERVAL '10 minutes');" 2>&1) && break; \
+	    case "$$out" in *"due to a concurrent refresh"*) [ $$i -lt 30 ] || { echo "$$out"; exit 1; } ;; *) echo "$$out"; exit 1 ;; esac; \
+	    echo "$$v: a refresh is already running, retrying"; \
+	    sleep 2; \
+	  done; \
+	  echo "$$v: refreshed"; \
 	done
 
 proto:            ## regenerate Go and TS code from proto/
