@@ -2,8 +2,10 @@
 -- timescaledb.materialized_only = false turns on real-time aggregation, so queries also see
 -- rows that are newer than the last refresh.
 
+-- samples_1s has as many rows as the raw table at 1 Hz, so it gets the raw table's 1 hour chunks.
+-- The default is 10 hours, and since retention drops whole chunks that would keep rows far longer.
 CREATE MATERIALIZED VIEW IF NOT EXISTS samples_1s
-WITH (timescaledb.continuous, timescaledb.materialized_only = false) AS
+WITH (timescaledb.continuous, timescaledb.materialized_only = false, timescaledb.chunk_interval = '1 hour') AS
 SELECT mmsi,
        time_bucket(INTERVAL '1 second', ts) AS bucket,
        last(lat, ts)            AS lat,
