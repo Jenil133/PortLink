@@ -17,12 +17,14 @@ type qState struct {
 	name                            string
 	vtype                           uint32
 	rpm, fuelDlph, tempDc, fuelDpct uint32
-	hasTelem                        bool // telemetry has been sent for this vessel
+	hasTelem                        bool  // telemetry has been sent for this vessel
+	tsMs                            int64 // sample time of the state last sent (firehose uses it to detect "new sample")
 }
 
 func quantize(v *model.VesselState) qState {
 	r := func(f float32, scale float64) uint32 { return uint32(math.Max(0, math.Round(float64(f)*scale))) }
 	return qState{
+		tsMs:  v.TsMs,
 		latE6: int32(math.Round(v.Lat * 1e6)), lonE6: int32(math.Round(v.Lon * 1e6)),
 		sogDkn: r(v.Sog, 10), cogDdeg: r(v.Cog, 10) % 3600, headingDeg: r(v.Heading, 1) % 360,
 		name: v.Name, vtype: v.VesselType,
@@ -74,8 +76,15 @@ func angDiff(a, b, full uint32) uint32 {
 // current state. It returns the delta to send (nil if nothing crossed a threshold) and the state
 // to remember. Fields that were NOT sent keep their previous value in the remembered state, so
 // slow drift accumulates and is eventually sent. Comparing against the last sample instead would
-// let a slowly moving vessel never update.
-func diffVessel(mmsi uint32, prev *qState, cur qState, posThr int32, telem bool) (*lensv1.VesselDelta, qState) {
+// let a slowly moving vessel never update. With full set (firehose) thresholds do not apply: every
+// new sample is sent with every field, and nothing is sent until there is a new sample.
+func diffVessel(mmsi uint32, prev *qState, cur qState, posThr int32, telem, full bool) (*lensv1.VesselDelta, qState) {
+	if full && prev != nil {
+		if cur.tsMs == prev.tsMs {
+			return nil, *prev // no new sample since the last send
+		}
+		prev = nil // new sample: fall through to the "send every field" branch
+	}
 	if prev == nil {
 		d := &lensv1.VesselDelta{
 			Mmsi: mmsi, LatE6: proto.Int32(cur.latE6), LonE6: proto.Int32(cur.lonE6),
@@ -91,6 +100,7 @@ func diffVessel(mmsi uint32, prev *qState, cur qState, posThr int32, telem bool)
 	}
 
 	next := *prev
+	next.tsMs = cur.tsMs
 	var d *lensv1.VesselDelta
 	out := func() *lensv1.VesselDelta { // allocate only when something actually changed
 		if d == nil {

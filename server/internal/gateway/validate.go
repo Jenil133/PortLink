@@ -44,7 +44,9 @@ func normalize(sub *lensv1.Subscribe, historyHours int) string {
 		sub.SeriesMaxPoints = 600
 	}
 	sub.SeriesMaxPoints = min(2000, max(50, sub.SeriesMaxPoints))
-	sub.Firehose = false // Phase 3 implements firehose, ignore the flag until then
+	if sub.Mode == lensv1.Mode_MODE_HISTORY {
+		sub.Firehose = false // the baseline is defined for live data only
+	}
 	return ""
 }
 

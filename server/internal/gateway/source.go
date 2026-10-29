@@ -6,7 +6,6 @@ import (
 
 	lensv1 "github.com/portlink/lens/server/internal/gen/lens/v1"
 	"github.com/portlink/lens/server/internal/model"
-	"github.com/portlink/lens/server/internal/store"
 )
 
 // View is everything a source needs to know about what the client can see.
@@ -33,7 +32,7 @@ func (l *liveSource) Snapshot(_ context.Context, v View, dst []model.VesselState
 // historySource is per client. It caches the last query so a paused cursor, or a cursor that is
 // still inside the same bucket, costs zero database work.
 type historySource struct {
-	st     *store.Store
+	st     historyStore
 	key    histKey
 	cached []model.VesselState
 }

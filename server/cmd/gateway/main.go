@@ -10,6 +10,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"strconv"
 	"strings"
 	"syscall"
 	"time"
@@ -48,6 +49,12 @@ func run() error {
 	if historyHours <= 0 {
 		return fmt.Errorf("HISTORY_HOURS must be positive, got %d", historyHours)
 	}
+	maxClients := config.EnvInt("MAX_CLIENTS", 200)
+	if maxClients <= 0 {
+		return fmt.Errorf("MAX_CLIENTS must be positive, got %d", maxClients)
+	}
+	clusterZoom := config.EnvFloat("CLUSTER_ZOOM", 6)
+	allowDebug, _ := strconv.ParseBool(config.Env("ALLOW_DEBUG_PARAMS", "false"))
 	dbURL := config.Env("DATABASE_URL", "")
 	if dbURL == "" {
 		return errors.New("DATABASE_URL is required")
@@ -82,12 +89,23 @@ func run() error {
 		world.Upsert(s)
 	}
 
+	srv := gateway.NewServer(ctx, gateway.Config{
+		Addr:             addr,
+		AllowedOrigins:   origins,
+		LiveTick:         time.Duration(liveTickMs) * time.Millisecond,
+		HistoryHours:     historyHours,
+		ClusterZoom:      clusterZoom,
+		MaxClients:       maxClients,
+		AllowDebugParams: allowDebug,
+	}, world, st)
+
 	// Core subscription. The callback runs on a single goroutine per subscription, in order.
 	sub, err := nc.Subscribe(bus.SubjectSamples+".>", func(m *nats.Msg) {
 		var s lensv1.VesselSample
 		if err := proto.Unmarshal(m.Data, &s); err != nil {
 			return
 		}
+		srv.CountSample()
 		world.Upsert(model.VesselState{
 			MMSI: s.Mmsi, TsMs: s.TsMs, Lat: s.Lat, Lon: s.Lon,
 			Sog: s.SogKn, Cog: s.CogDeg, Heading: s.HeadingDeg, Name: s.Name, VesselType: s.VesselType,
@@ -102,17 +120,12 @@ func run() error {
 
 	go evictLoop(ctx, world)
 
-	srv := gateway.NewServer(gateway.Config{
-		Addr:           addr,
-		AllowedOrigins: origins,
-		LiveTick:       time.Duration(liveTickMs) * time.Millisecond,
-		HistoryHours:   historyHours,
-	}, world, st)
-	httpServer := &http.Server{Addr: addr, Handler: srv.Handler()}
+	httpServer := &http.Server{Addr: addr, Handler: srv.Handler(), ReadHeaderTimeout: 5 * time.Second}
 
 	serveErr := make(chan error, 1)
 	go func() { serveErr <- httpServer.ListenAndServe() }()
-	slog.Info("gateway listening", "addr", addr, "allowed_origins", origins, "live_tick_ms", liveTickMs, "history_hours", historyHours)
+	slog.Info("gateway listening", "addr", addr, "allowed_origins", origins, "live_tick_ms", liveTickMs, "history_hours", historyHours,
+		"cluster_zoom", clusterZoom, "max_clients", maxClients, "allow_debug_params", allowDebug)
 
 	select {
 	case err := <-serveErr:
@@ -124,6 +137,11 @@ func run() error {
 	defer cancel()
 	if err := httpServer.Shutdown(shutdownCtx); err != nil && !errors.Is(err, http.ErrServerClosed) {
 		return fmt.Errorf("shutdown: %w", err)
+	}
+	// Shutdown does not wait for WebSockets. Give their close frames time to go out.
+	srv.WaitClients(shutdownCtx)
+	if err := nc.Drain(); err != nil {
+		slog.Warn("nats drain", "err", err)
 	}
 	return nil
 }
