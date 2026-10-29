@@ -3,4 +3,5 @@ node_modules/
 web/dist/
 data/*.csv
 data/*.zip
+data/*.csv.zst
 .DS_Store
