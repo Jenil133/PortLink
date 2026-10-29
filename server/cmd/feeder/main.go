@@ -8,8 +8,11 @@ import (
 	"flag"
 	"fmt"
 	"log/slog"
+	"math"
 	"os"
 	"os/signal"
+	"strconv"
+	"strings"
 	"syscall"
 	"time"
 
@@ -20,6 +23,7 @@ import (
 	"github.com/portlink/lens/server/internal/bus"
 	"github.com/portlink/lens/server/internal/config"
 	"github.com/portlink/lens/server/internal/feed"
+	"github.com/portlink/lens/server/internal/model"
 )
 
 const logEvery = 5 * time.Second
@@ -36,13 +40,6 @@ func run() error {
 	step := flag.Duration("step", 10*time.Second, "time between samples in backfill mode")
 	flag.Parse()
 
-	if source := config.Env("FEED_SOURCE", "synthetic"); source != "synthetic" {
-		return fmt.Errorf("FEED_SOURCE=%q is not available: ais source arrives in Phase 3", source)
-	}
-	vessels := config.EnvInt("FEED_VESSELS", 2000)
-	if vessels <= 0 {
-		return fmt.Errorf("FEED_VESSELS must be positive, got %d", vessels)
-	}
 	hz := config.EnvInt("FEED_HZ", 1)
 	switch hz {
 	case 1, 2, 5, 10:
@@ -51,6 +48,12 @@ func run() error {
 	}
 	if *step <= 0 {
 		return fmt.Errorf("-step must be positive, got %s", *step)
+	}
+
+	// Before the signal handler: loading an AIS file takes a while and SIGTERM should still end it.
+	src, err := loadSource()
+	if err != nil {
+		return err
 	}
 
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
@@ -65,14 +68,53 @@ func run() error {
 		return fmt.Errorf("ensure stream: %w", err)
 	}
 
-	var src feed.Source = feed.NewSynthFleet(vessels, int64(config.EnvInt("FEED_SEED", 42)))
-
 	if *backfill > 0 {
 		return runBackfill(ctx, js, src, *backfill, *step)
 	}
 	slog.Info("feeder live", "vessels", src.Len(), "hz", hz)
 	runLive(ctx, nc, src, hz)
 	return nil
+}
+
+func loadSource() (feed.Source, error) {
+	switch source := config.Env("FEED_SOURCE", "synthetic"); source {
+	case "synthetic":
+		vessels := config.EnvInt("FEED_VESSELS", 2000)
+		if vessels <= 0 {
+			return nil, fmt.Errorf("FEED_VESSELS must be positive, got %d", vessels)
+		}
+		return feed.NewSynthFleet(vessels, int64(config.EnvInt("FEED_SEED", 42))), nil
+	case "ais":
+		box, err := parseBBox(config.Env("AIS_BBOX", "-126,32,-116,49"))
+		if err != nil {
+			return nil, err
+		}
+		return feed.LoadAIS(config.Env("AIS_CSV_PATH", "../data/AIS_2024_07_01.csv"),
+			box, config.EnvFloat("REPLAY_SPEED", 1), config.EnvInt("FANOUT", 1))
+	default:
+		return nil, fmt.Errorf("FEED_SOURCE must be synthetic or ais, got %q", source)
+	}
+}
+
+// parseBBox reads "minLon,minLat,maxLon,maxLat".
+func parseBBox(s string) (model.BBox, error) {
+	parts := strings.Split(s, ",")
+	if len(parts) != 4 {
+		return model.BBox{}, fmt.Errorf("AIS_BBOX must be minLon,minLat,maxLon,maxLat, got %q", s)
+	}
+	var v [4]float64
+	for i, p := range parts {
+		f, err := strconv.ParseFloat(strings.TrimSpace(p), 64)
+		if err != nil || math.IsNaN(f) || math.IsInf(f, 0) {
+			return model.BBox{}, fmt.Errorf("AIS_BBOX must be minLon,minLat,maxLon,maxLat, got %q", s)
+		}
+		v[i] = f
+	}
+	b := model.BBox{MinLon: v[0], MinLat: v[1], MaxLon: v[2], MaxLat: v[3]}
+	if b.MinLon >= b.MaxLon || b.MinLat >= b.MaxLat || b.MinLon < -180 || b.MaxLon > 180 || b.MinLat < -90 || b.MaxLat > 90 {
+		return model.BBox{}, fmt.Errorf("AIS_BBOX is not a valid box: %q", s)
+	}
+	return b, nil
 }
 
 // Live loop. A 100 ms ticker with "slots" spreads the fleet evenly across each second
