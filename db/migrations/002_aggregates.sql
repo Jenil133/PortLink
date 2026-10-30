@@ -53,12 +53,18 @@ SELECT add_continuous_aggregate_policy('samples_1s',
 SELECT add_continuous_aggregate_policy('samples_1m',
     start_offset => INTERVAL '8 hours', end_offset => INTERVAL '1 minute',
     schedule_interval => INTERVAL '1 minute', if_not_exists => TRUE);
+-- A 10 minute bucket is materialized within a minute of closing. Until then a near-live seek at low
+-- zoom aggregates its raw rows on every query, up to 2.4 million at 2,000 vessels and 1 Hz.
+-- These offsets changed after first release, and if_not_exists errors on a policy with different
+-- offsets instead of updating it, so an existing database has to drop the old policy first.
+SELECT remove_continuous_aggregate_policy('samples_10m', if_exists => TRUE);
 SELECT add_continuous_aggregate_policy('samples_10m',
-    start_offset => INTERVAL '8 hours', end_offset => INTERVAL '10 minutes',
-    schedule_interval => INTERVAL '5 minutes', if_not_exists => TRUE);
+    start_offset => INTERVAL '8 hours', end_offset => INTERVAL '30 seconds',
+    schedule_interval => INTERVAL '30 seconds', if_not_exists => TRUE);
 
 -- The coarser aggregates are small, keep them a full day. samples_1s has as many rows as the
 -- raw table at 1 Hz, so it keeps the raw table's 12 hours, which is as far as history reaches.
+-- With 1 hour chunks and an hourly job, rows last 12 to 14 hours.
 SELECT add_retention_policy('samples_1s',  INTERVAL '12 hours', schedule_interval => INTERVAL '1 hour', if_not_exists => TRUE);
 SELECT add_retention_policy('samples_1m',  INTERVAL '24 hours', if_not_exists => TRUE);
 SELECT add_retention_policy('samples_10m', INTERVAL '24 hours', if_not_exists => TRUE);
