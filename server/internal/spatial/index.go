@@ -64,13 +64,6 @@ func (ix *Index) removeFrom(cell h3.Cell, mmsi uint32) {
 // It returns false when the box is too large, or reaches the antimeridian or a pole, and the caller
 // should scan all vessels instead. Candidates are a superset: the caller still checks the exact box.
 func (ix *Index) Candidates(b model.BBox, visit func(mmsi uint32)) bool {
-	midLat := (b.MinLat + b.MaxLat) / 2
-	cosLat := math.Max(0.2, math.Cos(midLat*math.Pi/180))
-	wKm := (b.MaxLon - b.MinLon) * 111.32 * cosLat
-	hKm := (b.MaxLat - b.MinLat) * 110.57
-	if wKm*hKm/cellAreaKm2 > maxCells {
-		return false
-	}
 	// PolygonToCells returns cells whose CENTER is inside the polygon. Padding the box by about
 	// one cell diameter (0.5 degrees) guarantees every cell that touches the real box is included.
 	// A degree of longitude is shortest at the edge nearest a pole, so the pad is sized there.
@@ -81,6 +74,12 @@ func (ix *Index) Candidates(b model.BBox, visit func(mmsi uint32)) bool {
 	// H3 reads a polygon wider than 180 degrees as crossing the antimeridian, and the cell holding
 	// a vessel near +-180 or a pole can have its center beyond the polygon.
 	if minLat <= -89 || maxLat >= 89 || minLon <= -180 || maxLon >= 180 || maxLon-minLon >= 180 {
+		return false
+	}
+	cosLat := math.Max(0.2, math.Cos((minLat+maxLat)/2*math.Pi/180))
+	wKm := (maxLon - minLon) * 111.32 * cosLat
+	hKm := (maxLat - minLat) * 110.57
+	if wKm*hKm/cellAreaKm2 > maxCells {
 		return false
 	}
 	loop := h3.GeoLoop{
