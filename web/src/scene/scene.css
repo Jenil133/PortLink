@@ -1,0 +1,84 @@
+.scene {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background: var(--surface-sea);
+}
+
+/* The frame is moved by the render loop and never takes pointer input. */
+.lens-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 0;
+  height: 0;
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  will-change: transform;
+  z-index: var(--z-map-labels);
+}
+.lens-frame__border {
+  position: absolute;
+  inset: 0;
+  border: 2px solid var(--pearl);
+}
+.lens-frame__tick {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border: 0 solid var(--lime);
+  opacity: 0.75;
+  transition: opacity var(--duration-hover) var(--ease-out), border-color var(--duration-hover) var(--ease-out);
+}
+.lens-frame:not([data-truth]) .lens-frame__tick,
+.lens-frame.is-subscribing .lens-frame__tick {
+  opacity: 1;
+}
+.lens-frame[data-truth="history"] .lens-frame__tick,
+.lens-frame[data-truth="stale"] .lens-frame__tick {
+  border-color: var(--pearl);
+}
+.lens-frame__tick--tl {
+  top: 0;
+  left: 0;
+  border-top-width: 3px;
+  border-left-width: 3px;
+}
+.lens-frame__tick--tr {
+  top: 0;
+  right: 0;
+  border-top-width: 3px;
+  border-right-width: 3px;
+}
+.lens-frame__tick--bl {
+  bottom: 0;
+  left: 0;
+  border-bottom-width: 3px;
+  border-left-width: 3px;
+}
+.lens-frame__tick--br {
+  bottom: 0;
+  right: 0;
+  border-bottom-width: 3px;
+  border-right-width: 3px;
+}
+.lens-frame__label {
+  position: absolute;
+  right: 0;
+  bottom: 100%;
+  margin-bottom: var(--space-8);
+  white-space: nowrap;
+  color: var(--text-on-sea);
+}
+
+/* Compact attribution, on theme. */
+.scene .maplibregl-ctrl-attrib {
+  background: var(--surface-rail);
+  color: var(--text-on-sea-muted);
+  font: 400 12px/16px var(--font-sans);
+}
+.scene .maplibregl-ctrl-attrib a {
+  color: var(--text-on-sea);
+}
