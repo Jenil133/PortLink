@@ -1,7 +1,18 @@
 include .env
+# Recipes for the Go services run from server/. Override on the command line, for example:
+# make feeder FEED_SOURCE=ais AIS_CSV_PATH=../data/AIS_2024_07_01.csv
+AIS_CSV_PATH ?= ../data/$(AIS_FILE)
 export
 
-.PHONY: infra migrate refresh proto feeder ingest gateway web backfill psql
+.PHONY: up down infra migrate refresh proto feeder ingest gateway web backfill backfill-docker psql test test-server test-web loadgen fetch-ais
+
+up:               ## build and start the whole stack (migrate waits for TimescaleDB itself)
+	docker compose up -d nats timescaledb
+	$(MAKE) migrate
+	docker compose up -d --build
+
+down:
+	docker compose down
 
 infra:            ## start NATS and TimescaleDB
 	docker compose up -d nats timescaledb
@@ -38,6 +49,13 @@ feeder:
 backfill:         ## one-shot: publish the previous 6 hours, then exit
 	cd server && go run ./cmd/feeder -backfill=6h
 
+backfill-docker:  ## one-shot 6 h backfill inside the stack, then materialize aggregates (starts what it needs)
+	docker compose up -d nats timescaledb
+	$(MAKE) migrate
+	docker compose up -d ingest
+	docker compose run --rm feeder feeder -backfill=6h
+	$(MAKE) refresh
+
 ingest:
 	cd server && go run ./cmd/ingest
 
@@ -49,3 +67,17 @@ web:
 
 psql:
 	docker compose exec timescaledb psql -U $(POSTGRES_USER) -d $(POSTGRES_DB)
+
+test: test-server test-web
+
+test-server:
+	cd server && go vet ./... && go test ./...
+
+test-web:
+	cd web && npx tsc --noEmit && npm test
+
+loadgen:          ## for other flags: cd server && go run ./cmd/loadgen -firehose
+	cd server && go run ./cmd/loadgen -clients 50 -duration 30s
+
+fetch-ais:        ## download one day of AIS data into data/
+	./scripts/fetch_ais.sh
