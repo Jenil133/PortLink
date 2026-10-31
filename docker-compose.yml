@@ -4,6 +4,7 @@ services:
     command: ["-js", "-sd", "/data", "-m", "8222"]
     ports: ["127.0.0.1:4222:4222", "127.0.0.1:8222:8222"]
     volumes: ["nats-data:/data"]
+    restart: unless-stopped
 
   timescaledb:
     image: timescale/timescaledb:2.31.0-pg16
@@ -14,10 +15,65 @@ services:
     ports: ["127.0.0.1:5432:5432"]
     volumes: ["pg-data:/var/lib/postgresql/data"]
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
+      # Over TCP: during first start the temporary init server answers on the socket only.
+      test: ["CMD-SHELL", "pg_isready -h 127.0.0.1 -U ${POSTGRES_USER} -d ${POSTGRES_DB}"]
       interval: 5s
       timeout: 3s
       retries: 20
+    restart: unless-stopped
+
+  ingest:
+    build: ./server
+    command: ["ingest"]
+    environment: &svcenv
+      NATS_URL: nats://nats:4222
+      DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}?sslmode=disable
+    depends_on:
+      nats: { condition: service_started }
+      timescaledb: { condition: service_healthy }
+    restart: unless-stopped
+
+  gateway:
+    build: ./server
+    command: ["gateway"]
+    environment:
+      <<: *svcenv
+      GATEWAY_ADDR: ":8080"
+      ALLOWED_ORIGINS: ${ALLOWED_ORIGINS}
+      LIVE_TICK_MS: ${LIVE_TICK_MS:-100}
+      HISTORY_HOURS: ${HISTORY_HOURS:-6}
+      CLUSTER_ZOOM: ${CLUSTER_ZOOM:-6}
+      MAX_CLIENTS: ${MAX_CLIENTS:-200}
+      ALLOW_DEBUG_PARAMS: ${ALLOW_DEBUG_PARAMS:-false}
+    ports: ["127.0.0.1:8080:8080"]
+    depends_on:
+      nats: { condition: service_started }
+      timescaledb: { condition: service_healthy }
+    restart: unless-stopped
+
+  feeder:
+    build: ./server
+    command: ["feeder"]
+    environment:
+      <<: *svcenv
+      FEED_SOURCE: ${FEED_SOURCE:-synthetic}
+      FEED_VESSELS: ${FEED_VESSELS:-2000}
+      FEED_HZ: ${FEED_HZ:-1}
+      FEED_SEED: ${FEED_SEED:-42}
+      AIS_CSV_PATH: /data/${AIS_FILE:-AIS_2024_07_01.csv}
+      AIS_BBOX: ${AIS_BBOX:--126,32,-116,49}
+      REPLAY_SPEED: ${REPLAY_SPEED:-1}
+      FANOUT: ${FANOUT:-1}
+    volumes: ["./data:/data:ro"]
+    depends_on:
+      nats: { condition: service_started }
+    restart: unless-stopped
+
+  web:
+    build: ./web
+    ports: ["8088:80"]
+    depends_on: [gateway]
+    restart: unless-stopped
 
 volumes:
   nats-data:
