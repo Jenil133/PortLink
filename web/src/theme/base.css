@@ -1,0 +1,163 @@
+/* Global reset, named type styles and shared focus and motion rules. */
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+html {
+  -webkit-text-size-adjust: 100%;
+}
+
+body {
+  background: var(--surface-sea);
+  color: var(--text-on-sea);
+  font: 400 14px/20px var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+h1,
+h2,
+h3,
+p {
+  margin: 0;
+}
+
+button {
+  font: inherit;
+  color: inherit;
+  background: none;
+  border: 0;
+  padding: 0;
+  cursor: pointer;
+}
+
+button:disabled {
+  cursor: not-allowed;
+}
+
+a {
+  color: inherit;
+}
+
+/* Display and sans. No italics, 600 is the heaviest weight. */
+.d-hero {
+  font: 600 72px/72px var(--font-display);
+  letter-spacing: -0.02em;
+}
+.d-title {
+  font: 600 48px/48px var(--font-display);
+  letter-spacing: -0.01em;
+}
+.d-head {
+  font: 600 24px/32px var(--font-display);
+}
+.d-word {
+  font: 600 20px/24px var(--font-display);
+  letter-spacing: 0.04em;
+}
+.t-label {
+  font: 500 12px/16px var(--font-sans);
+}
+.t-body {
+  font: 400 14px/20px var(--font-sans);
+}
+.t-body-lg {
+  font: 400 18px/28px var(--font-sans);
+}
+.t-title {
+  font: 600 14px/20px var(--font-sans);
+}
+
+/* Mono, numbers only, tabular. Numbers never animate. */
+.n-xs,
+.n-sm,
+.n-md,
+.n-lg,
+.n-hero {
+  font-family: var(--font-mono);
+  font-variant-numeric: tabular-nums;
+  white-space: nowrap;
+}
+.n-xs {
+  font-size: 12px;
+  line-height: 16px;
+  font-weight: 500;
+}
+.n-sm {
+  font-size: 14px;
+  line-height: 20px;
+  font-weight: 500;
+}
+.n-md {
+  font-size: 20px;
+  line-height: 24px;
+  font-weight: 500;
+}
+.n-lg {
+  font-size: 30px;
+  line-height: 36px;
+  font-weight: 600;
+}
+.n-hero {
+  font-size: 60px;
+  line-height: 60px;
+  font-weight: 600;
+  letter-spacing: -0.02em;
+}
+.n-unit {
+  font: 400 12px/16px var(--font-sans);
+}
+
+/* A value bound to a client measurement. */
+.bound {
+  border-bottom: 1px dashed currentColor;
+}
+
+/* Text placed directly on the map. */
+.on-map {
+  text-shadow:
+    0 1px 2px var(--overlay-halo),
+    0 0 2px var(--overlay-halo);
+}
+
+/* Focus is instant and sits outside the element. */
+:focus {
+  outline: none;
+}
+:focus-visible {
+  outline: 2px solid var(--focus-on-sea);
+  outline-offset: 2px;
+}
+.on-card :focus-visible,
+.on-card:focus-visible {
+  outline-color: var(--focus-on-card);
+}
+
+.sr-only {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+  border: 0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+  }
+}

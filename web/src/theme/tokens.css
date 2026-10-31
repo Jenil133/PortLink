@@ -1,0 +1,156 @@
+/* PortLink Lens design tokens, from design spec v3, sheet 01.
+   Raw palette first, role tokens second. Components use role tokens only. */
+:root {
+  /* ---------- raw palette: three hues, 60 30 10 ---------- */
+  --teal-900: #05212b; /* deepest, shadows */
+  --teal-800: #062a35; /* dark panels, timeline rail */
+  --teal-700: #0d4453; /* raised */
+  --teal-600: #124c5c; /* active, column bodies */
+  --teal-500: #1a5c6e; /* hairlines on teal, hover */
+  --teal: #0a3a47; /* the surface, 60 percent, water */
+  --teal-muted-1: #a9c4cb; /* muted text on teal, 6.70; on moss 5.82 */
+  --teal-muted-2: #8fb0b9; /* quiet text on teal, 5.31; not on teal-600 at 12 px (4.10) */
+
+  --moss: #2f423d; /* land, separates from sea by hue */
+  --moss-600: #3e524c; /* buildings on land, decorative */
+  --moss-800: #263834; /* roads on land, decorative */
+  --moss-300: #5c6f69; /* boundaries on land, decorative */
+  --fleet: #dce6e2; /* vessels at rest, 9.63 on sea, 8.37 on moss */
+  --label-on-moss: #c9d4d6; /* basemap labels over land, 7.05 */
+
+  --pearl: #f2f0e9; /* 30 percent */
+  --pearl-200: #e7e4da; /* pearl inset */
+  --pearl-300: #cfcabb; /* hairlines on pearl, not text */
+  --pearl-ink: #0a3a47; /* text on pearl, 10.78 */
+  --pearl-muted: #3e626c; /* muted text on pearl, 5.81 */
+
+  --lime: #b9f12f; /* 10 percent, current truth only */
+
+  --warn-on-teal: #ffb454; /* 6.97 */
+  --error-on-teal: #ff8a6b; /* 5.32 */
+  --warn-on-pearl: #8a4b00; /* 5.97 */
+  --error-on-pearl: #a63a1e; /* 5.67 */
+
+  --alpha-pearl-35: rgba(242, 240, 233, 0.35); /* coastline */
+  --alpha-pearl-12: rgba(242, 240, 233, 0.12); /* hatch, skeleton */
+  --alpha-teal900-60: rgba(5, 33, 43, 0.6); /* scrim, shadows */
+
+  /* ---------- role: surface ---------- */
+  --surface-sea: var(--teal); /* map water and page */
+  --surface-rail: var(--teal-800); /* timeline, dark panels */
+  --surface-raised: var(--teal-700);
+  --surface-active: var(--teal-600);
+  --surface-card: var(--pearl); /* instrument card, lower part */
+  --surface-slab-live: var(--lime); /* card's top slab while live */
+  --surface-slab-rest: var(--pearl); /* slab in history, reconnecting, offline */
+  --surface-slab-gap: var(--teal); /* 4 px band between slab and pearl, never lime on pearl */
+  --surface-land: var(--moss);
+  --surface-card-inset: var(--pearl-200);
+  --surface-scrim: var(--alpha-teal900-60);
+  --surface-tooltip: var(--teal-800);
+
+  /* ---------- role: text ---------- */
+  --text-on-sea: var(--pearl);
+  --text-on-sea-muted: var(--teal-muted-1);
+  --text-on-sea-quiet: var(--teal-muted-2);
+  --text-on-card: var(--pearl-ink);
+  --text-on-card-muted: var(--pearl-muted);
+  --text-live: var(--lime); /* on teal only, never on pearl */
+  --text-on-lime: var(--teal); /* 9.18, the slab and the LIVE button */
+  --text-on-lime-muted: var(--teal-500); /* 5.60 on lime, slab labels */
+  --text-disabled-on-sea: #5e868f; /* exempt */
+  --text-disabled-on-card: #9aa7ae; /* exempt */
+
+  /* ---------- role: border ---------- */
+  --line-on-sea: var(--teal-500);
+  --line-on-sea-strong: var(--teal-muted-2); /* 3:1 and above, meaningful edges */
+  --line-on-card: var(--pearl-300);
+  --line-on-card-strong: var(--pearl-muted);
+  --focus-on-sea: var(--lime); /* 2 px outside ring, 9.18 */
+  --focus-on-card: var(--pearl-ink); /* 2 px outside ring, 10.78 */
+
+  /* ---------- role: action ---------- */
+  --action-text-on-sea: var(--pearl);
+  --action-hover-on-sea: var(--teal-500);
+  --action-pressed-on-sea: var(--teal-700);
+  --action-text-on-card: var(--pearl-ink);
+  --action-hover-on-card: var(--pearl-200);
+  --action-pressed-on-card: var(--pearl-300);
+  --action-primary-bg: var(--pearl); /* the one filled button */
+  --action-primary-text: var(--pearl-ink);
+  --action-live-container: var(--teal); /* lime text inside, on any surface */
+
+  /* ---------- role: icon ---------- */
+  --icon-on-sea: var(--teal-muted-1);
+  --icon-on-card: var(--pearl-muted);
+
+  /* ---------- role: overlay ---------- */
+  --overlay-halo: var(--teal-900); /* text shadow for text on the map */
+  --overlay-skeleton: var(--alpha-pearl-12);
+  --overlay-hatch: repeating-linear-gradient(135deg, var(--alpha-pearl-12) 0 2px, transparent 2px 6px);
+
+  /* ---------- role: status, only when something is wrong ---------- */
+  --status-warn-on-sea: var(--warn-on-teal);
+  --status-error-on-sea: var(--error-on-teal);
+  --status-warn-on-card: var(--warn-on-pearl);
+  --status-error-on-card: var(--error-on-pearl);
+  --mode-live: var(--lime);
+  /* history has no colour: pearl type, hatch and the word HISTORY */
+
+  /* ---------- type ---------- */
+  --font-display: "Bricolage Grotesque Variable", "Helvetica Neue", Arial, sans-serif;
+  --font-sans: "Geist Variable", system-ui, -apple-system, sans-serif;
+  --font-mono: "Geist Mono Variable", ui-monospace, "SF Mono", monospace;
+  --text-xs: 12px;
+  --text-sm: 14px;
+  --text-base: 16px;
+  --text-lg: 18px;
+  --text-xl: 20px;
+  --text-2xl: 24px;
+  --text-3xl: 30px;
+  --text-4xl: 36px;
+  --text-5xl: 48px;
+  --text-6xl: 60px;
+  --text-7xl: 72px;
+
+  /* ---------- spacing, radius ---------- */
+  --space-0: 0;
+  --space-2: 2px;
+  --space-4: 4px;
+  --space-8: 8px;
+  --space-12: 12px;
+  --space-16: 16px;
+  --space-24: 24px;
+  --space-32: 32px;
+  --space-40: 40px;
+  --space-48: 48px;
+  --space-64: 64px;
+  --space-80: 80px;
+  --space-96: 96px;
+  --radius-0: 0;
+  --radius-2: 2px;
+  --radius-4: 4px; /* console chrome uses radius 2 and 4 only; the card is radius 4 */
+  --radius-6: 6px;
+  --radius-8: 8px;
+  --radius-12: 12px;
+  --radius-16: 16px;
+  --radius-24: 24px;
+  --radius-full: 9999px;
+
+  /* ---------- motion ---------- */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-hover: 300ms;
+  --duration-layout: 500ms;
+  --duration-camera: 800ms;
+  --duration-entry: 2200ms;
+
+  /* ---------- z-index ---------- */
+  --z-map: 0;
+  --z-story-copy: 5;
+  --z-map-labels: 10;
+  --z-panels: 20;
+  --z-tooltip: 30;
+  --z-banner: 40;
+  --z-handoff: 45;
+  --z-dialog: 50;
+}
