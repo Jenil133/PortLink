@@ -4,6 +4,12 @@ services:
     command: ["-js", "-sd", "/data", "-m", "8222"]
     ports: ["127.0.0.1:4222:4222", "127.0.0.1:8222:8222"]
     volumes: ["nats-data:/data"]
+    # Ready means JetStream has restored its streams, which takes seconds when the stream is large.
+    healthcheck:
+      test: ["CMD", "wget", "-q", "--spider", "http://127.0.0.1:8222/healthz?js-enabled-only=true"]
+      interval: 2s
+      timeout: 3s
+      retries: 30
     restart: unless-stopped
 
   timescaledb:
@@ -29,7 +35,7 @@ services:
       NATS_URL: nats://nats:4222
       DATABASE_URL: postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@timescaledb:5432/${POSTGRES_DB}?sslmode=disable
     depends_on:
-      nats: { condition: service_started }
+      nats: { condition: service_healthy }
       timescaledb: { condition: service_healthy }
     restart: unless-stopped
 
@@ -47,7 +53,7 @@ services:
       ALLOW_DEBUG_PARAMS: ${ALLOW_DEBUG_PARAMS:-false}
     ports: ["127.0.0.1:8080:8080"]
     depends_on:
-      nats: { condition: service_started }
+      nats: { condition: service_healthy }
       timescaledb: { condition: service_healthy }
     restart: unless-stopped
 
@@ -66,7 +72,7 @@ services:
       FANOUT: ${FANOUT:-1}
     volumes: ["./data:/data:ro"]
     depends_on:
-      nats: { condition: service_started }
+      nats: { condition: service_healthy }
     restart: unless-stopped
 
   web:
