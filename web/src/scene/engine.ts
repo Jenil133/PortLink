@@ -8,7 +8,7 @@ import { clamp, range, smoothstep } from "./math";
 import { getAtlas } from "./sprites";
 import { buildFixture, STORY_VESSEL, type Fixture } from "./story/fixture";
 import { fleet } from "../state/vessels";
-import { StoryState, storyLayers } from "./story/layers";
+import { StoryState, storyLayers, warmupLayers } from "./story/layers";
 import { cameraAt, consoleFrame, DEFAULT_CAMERA, lensSweepX, reducedFrame, type Camera } from "./story/timeline";
 import { consoleLayers, type ConsoleScene, type ConsoleTruth } from "./console/layers";
 
@@ -63,6 +63,8 @@ export class SceneEngine {
   private lastP = -1;
   private lastRawChange = 0;
   private forceDraw = true;
+  /** While set, invisible copies of every layer type are drawn so their shaders compile before they are needed. */
+  private warmUntil = 0;
   private driftClock = 0;
 
   private fixture: Fixture;
@@ -127,6 +129,7 @@ export class SceneEngine {
   }
 
   start() {
+    this.warmUntil = performance.now() + 1500;
     if (this.running) return;
     this.running = true;
     this.raf = requestAnimationFrame(this.tick);
@@ -419,7 +422,8 @@ export class SceneEngine {
     const p = this.pSmooth;
 
     const moved = p !== this.lastP;
-    let dirty = moved || this.forceDraw;
+    const warming = now < this.warmUntil;
+    let dirty = moved || this.forceDraw || warming;
 
     // Idle drift, at 10 Hz because 0.4 px per second needs no more.
     if (!this.reduced && !moved && now - this.lastRawChange > 400 && p > 0.2 && p < 0.88) {
@@ -435,7 +439,8 @@ export class SceneEngine {
     const camera = cameraAt(p, this.isPhone, this.vw / this.vh, this.reduced);
     this.applyCamera(camera);
     this.story.update(p, camera);
-    this.overlay.setProps({ layers: storyLayers(p, camera, this.story) });
+    const layers = storyLayers(p, camera, this.story);
+    this.overlay.setProps({ layers: warming ? layers.concat(warmupLayers(this.atlas, [camera.lng, camera.lat])) : layers });
     this.storyFrame(p);
     this.updateGrid(camera.zoom);
     for (const fn of this.storyListeners) fn(p);
