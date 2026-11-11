@@ -18,13 +18,25 @@ const (
 func SampleSubject(mmsi uint32) string   { return fmt.Sprintf("%s.%d", SubjectSamples, mmsi) }
 func BackfillSubject(mmsi uint32) string { return fmt.Sprintf("%s.%d", SubjectBackfill, mmsi) }
 
-// Connect retries forever on disconnect so a NATS restart does not kill the service.
+// connectWait bounds the first connection. NATS only listens once it has restored its
+// JetStream streams, which takes seconds after a start with a large stream.
+const connectWait = 30 * time.Second
+
+// Connect retries forever on disconnect so a NATS restart does not kill the service, and retries
+// the first connection for up to connectWait so a service can start together with NATS.
 func Connect(url, name string) (*nats.Conn, jetstream.JetStream, error) {
-	nc, err := nats.Connect(url,
-		nats.Name(name),
-		nats.MaxReconnects(-1),
-		nats.ReconnectWait(time.Second),
-	)
+	var nc *nats.Conn
+	var err error
+	for deadline := time.Now().Add(connectWait); ; time.Sleep(time.Second) {
+		nc, err = nats.Connect(url,
+			nats.Name(name),
+			nats.MaxReconnects(-1),
+			nats.ReconnectWait(time.Second),
+		)
+		if err == nil || time.Now().After(deadline) {
+			break
+		}
+	}
 	if err != nil {
 		return nil, nil, err
 	}
