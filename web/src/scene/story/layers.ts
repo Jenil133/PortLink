@@ -499,3 +499,31 @@ export function hullShadowPolygon(lng: number, lat: number, cog: number, scale: 
     return [lng + ex / mPerDegLng, lat + ny / 111320] as [number, number];
   });
 }
+
+/**
+ * One invisible instance of every layer type the story and console use. Drawing them once while the
+ * title screen is up compiles their shaders and builds the font atlases, which otherwise cost 100 to
+ * 330 ms the first time each one appears mid-scroll. Props that change shaders or atlases must match
+ * the real layers.
+ */
+export function warmupLayers(atlas: { url: string; mapping: IconMapping }, at: [number, number]): Layer[] {
+  const point = [{ lng: at[0], lat: at[1], cog: 0 }];
+  const path = [
+    [at[0], at[1]],
+    [at[0] + 0.01, at[1] + 0.01],
+  ] as [number, number][];
+  const hidden = { opacity: 0, pickable: false } as const;
+  return [
+    new ColumnLayer({ id: "warm-column", data: point, ...hidden, diskResolution: 12, radius: 10, radiusUnits: "pixels", extruded: true, material: COLUMN_MATERIAL, getPosition: (d) => [d.lng, d.lat], getElevation: 1000, getFillColor: deckColors.clusterBody }),
+    new ColumnLayer({ id: "warm-column-cap", data: point, ...hidden, diskResolution: 24, radius: 10, radiusUnits: "pixels", extruded: false, getPosition: (d) => [d.lng, d.lat, 1000], getFillColor: LIME }),
+    new TextLayer({ id: "warm-text-mono", data: point, ...hidden, ...FLAT, fontFamily: '"Geist Mono Variable", monospace', fontWeight: 500, characterSet: "0123456789,", fontSettings: { sdf: true }, outlineWidth: 2, outlineColor: deckColors.clusterLabelOutline, getPosition: (d) => [d.lng, d.lat], getText: () => "1,234", getSize: 12 }),
+    new TextLayer({ id: "warm-text-sans", data: point, ...hidden, ...FLAT, fontFamily: '"Geist Variable", sans-serif', fontWeight: 500, fontSettings: { sdf: true }, outlineWidth: 2, outlineColor: deckColors.clusterLabelOutline, getPosition: (d) => [d.lng, d.lat], getText: () => "browser", getSize: 12 }),
+    new ArcLayer({ id: "warm-arc", data: point, ...hidden, ...FLAT, widthUnits: "pixels", numSegments: 28, getSourcePosition: (d) => [d.lng, d.lat], getTargetPosition: (d) => [d.lng + 0.1, d.lat], getSourceColor: PEARL, getTargetColor: PEARL }),
+    new TripsLayer({ id: "warm-trips", data: [{ path, timestamps: [0, 40] }], ...hidden, ...FLAT, getPath: (d: { path: [number, number][] }) => d.path, getTimestamps: (d: { timestamps: number[] }) => d.timestamps, widthUnits: "pixels", getWidth: 2, currentTime: 40, trailLength: 40, fadeTrail: true }),
+    new PathLayer({ id: "warm-path", data: [path], ...hidden, ...FLAT, getPath: (d) => d, widthUnits: "pixels", getWidth: 3, capRounded: true, jointRounded: true }),
+    new ScatterplotLayer({ id: "warm-scatter", data: point, ...hidden, ...FLAT, radiusUnits: "pixels", stroked: true, lineWidthUnits: "pixels", getPosition: (d) => [d.lng, d.lat], getRadius: 5 }),
+    new SolidPolygonLayer({ id: "warm-polygon", data: [path.concat([[at[0], at[1] + 0.01]])], ...hidden, ...FLAT, getPolygon: (d) => d }),
+    new SimpleMeshLayer({ id: "warm-mesh", data: point, ...hidden, mesh: HULL_MESH, sizeScale: 100, material: HULL_MATERIAL, getPosition: (d) => [d.lng, d.lat, 0], getOrientation: [0, 0, 0], getColor: LIME, parameters: { depthCompare: "always", cullMode: "none" } }),
+    new IconLayer({ id: "warm-icon", data: point, ...hidden, ...FLAT, iconAtlas: atlas.url, iconMapping: atlas.mapping, sizeUnits: "pixels", billboard: false, getIcon: () => spriteName("arrow", "lime"), getPosition: (d) => [d.lng, d.lat], getSize: 12 }),
+  ];
+}
