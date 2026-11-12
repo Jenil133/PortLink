@@ -153,7 +153,7 @@ function Banner() {
         <span className="t-title" style={{ color: "var(--status-error-on-sea)" }}>
           server unreachable
         </span>
-        <span className="t-label">check the gateway, then reload</span>
+        <span className="t-label">check the gateway, retrying automatically</span>
       </div>
     );
   }

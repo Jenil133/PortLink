@@ -970,8 +970,9 @@
   align-items: center;
   justify-content: space-between;
   gap: var(--space-24);
-  width: min(400px, calc(100% - 32px));
+  width: min(520px, calc(100% - 32px));
   height: 44px;
+  white-space: nowrap;
   padding: 0 var(--space-16);
   background: var(--surface-rail);
   border-top: 1px solid var(--status-warn-on-sea);
