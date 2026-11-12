@@ -8,8 +8,9 @@ import { deckColors, LIME, PEARL } from "../../theme/colors";
 import { HULL_MATERIAL, FLAT, COLUMN_MATERIAL, columnHeightPx, columnRadiusPx, clusterSpacingPx } from "../layerParams";
 import { D2R, lerp, metersPerPixel, range, smoothstep, srange } from "../math";
 import { HULL_MESH, HULL_OUTLINE } from "../hull";
+import { fitLabels } from "../labels";
 import { spriteName, type IconMapping } from "../sprites";
-import { STORY_TRACK, STORY_VESSEL, type Fixture } from "./fixture";
+import { STORY_TRACK, STORY_VESSEL, type Fixture, type FixtureCluster } from "./fixture";
 import { cameraAt, copyRect, lensRest, lensSweepX, type Camera, type Rect } from "./timeline";
 
 export interface StoryContext {
@@ -37,6 +38,8 @@ export class StoryState {
   markerA: [number, number] = [0, 0];
   markerB: [number, number] = [0, 0];
   colorVersion = 0;
+  /** Columns whose count fits on screen without overlapping another. */
+  columnLabels: FixtureCluster[] = [];
   fallVersion = 0;
   iconVersion = 0;
   driftVersion = 0;
@@ -179,6 +182,19 @@ export function storyLayers(p: number, camera: Camera, s: StoryState): Layer[] {
       return columnHeightPx(c.count, spacing) * mpp * t * sink;
     };
     const version = `${riseT}:${sink}:${zoom}`;
+    // Where columns bunch up their counts would overlap: the largest keep their label. Fitted at full
+    // height, so the choice does not flicker while the columns rise and sink.
+    const { vw, vh } = s.ctx;
+    const vp = new WebMercatorViewport({ width: vw, height: vh, longitude: camera.lng, latitude: camera.lat, zoom, pitch: camera.pitch, bearing: camera.bearing });
+    s.columnLabels = fitLabels(
+      fixture.clusters,
+      vp,
+      (c) => [c.lng, c.lat, columnHeightPx(c.count, spacing) * mpp],
+      (c) => c.count.toLocaleString("en-US"),
+      (c) => c.count,
+      -16,
+      s.columnLabels,
+    );
     layers.push(
       new ScatterplotLayer({
         id: "story-column-shadow",
@@ -218,7 +234,7 @@ export function storyLayers(p: number, camera: Camera, s: StoryState): Layer[] {
       }),
       new TextLayer({
         id: "story-column-count",
-        data: fixture.clusters,
+        data: s.columnLabels,
         ...FLAT,
         fontFamily: '"Geist Mono Variable", monospace',
         fontWeight: 500,
