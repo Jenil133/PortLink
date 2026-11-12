@@ -26,7 +26,7 @@ function Header({ engine, layout }: { engine: SceneEngine | null; layout: Layout
   const v = s.view;
   const word = stale ? (
     <span className="d-word" style={{ color: "var(--status-warn-on-sea)" }}>
-      STALE
+      {s.firstFrame ? "STALE" : "OFFLINE"}
     </span>
   ) : s.truth === "history" ? (
     <span className="d-word" style={{ color: "var(--text-on-sea-muted)" }}>

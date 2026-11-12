@@ -119,7 +119,7 @@ export function Timeline({ layout }: { layout: Layout }) {
         ) : (
           <>
             <div className="rail__line rail__line--dashed" />
-            <span className="t-label rail__nohistory">{t.historyStartMs === 0 ? "loading history range" : "no history range, reconnect or run the backfill"}</span>
+            <span className="t-label rail__nohistory">{t.historyStartMs === 0 ? (stale ? "history range unknown until connected" : "loading history range") : "no history range, reconnect or run the backfill"}</span>
           </>
         )}
       </div>
@@ -130,9 +130,9 @@ export function Timeline({ layout }: { layout: Layout }) {
         {stale ? (
           <span className="rail__mode">
             <span className="d-word" style={{ color: "var(--status-warn-on-sea)" }}>
-              STALE
+              {s.firstFrame ? "STALE" : "OFFLINE"}
             </span>
-            <span className="n-lg">{s.staleAgeS} s</span>
+            {s.firstFrame && <span className="n-lg">{s.staleAgeS} s</span>}
           </span>
         ) : live ? (
           <span className="d-word rail__mode" style={{ color: "var(--text-live)" }}>

@@ -122,7 +122,8 @@ function Hero() {
 }
 
 function slabWord(s: ReturnType<typeof useLens.getState>) {
-  if (s.connection === "reconnecting" || s.connection === "offline") return `STALE ${s.staleAgeS} s`;
+  // Stale means old data on screen. A client that never got a frame has nothing to be stale about.
+  if (s.connection === "reconnecting" || s.connection === "offline") return s.firstFrame ? `STALE ${s.staleAgeS} s` : "OFFLINE";
   if (s.truth === "history") return "HISTORY";
   return "LIVE";
 }
@@ -143,7 +144,7 @@ function Footer() {
       {`tier ${s.tier}`}
       {!stale && t.seekMs !== null && ` · seek ${t.seekMs} ms`}
       {" · "}
-      <span style={stale ? { color: "var(--status-warn-on-card)" } : undefined}>{t.lagMs === null ? "lag paused" : stale ? `lag ${(t.lagMs / 1000).toFixed(1)} s` : `lag ${t.lagMs} ms`}</span>
+      <span style={stale ? { color: "var(--status-warn-on-card)" } : undefined}>{t.lagMs === null ? (stale ? "lag --" : "lag paused") : stale ? `lag ${(t.lagMs / 1000).toFixed(1)} s` : `lag ${t.lagMs} ms`}</span>
       {" · "}
       <StatusText />
     </p>
