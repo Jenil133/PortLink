@@ -11,6 +11,7 @@ import { fleet } from "../state/vessels";
 import { StoryState, storyLayers, warmupLayers } from "./story/layers";
 import { cameraAt, consoleFrame, DEFAULT_CAMERA, lensSweepX, reducedFrame, type Camera } from "./story/timeline";
 import { consoleLayers, type ConsoleScene, type ConsoleTruth } from "./console/layers";
+import { mapViewport } from "./labels";
 
 export type SceneMode = "story" | "console";
 
@@ -111,6 +112,7 @@ export class SceneEngine {
       hoverMmsi: 0,
       hover: null,
       hullEnabled: true,
+      labelViewport: null,
     };
 
     const ambient = new AmbientLight({ color: [200, 215, 230], intensity: 0.85 });
@@ -481,6 +483,7 @@ export class SceneEngine {
     s.selectT = smoothstep(selectT);
     s.zoom = zoom;
     s.clusters = fleet.clusters;
+    s.labelViewport = s.clusters ? mapViewport(m) : null;
     this.syncSelected();
     if (s.hoverMmsi) {
       const i = fleet.indexOf(s.hoverMmsi);

@@ -6,6 +6,7 @@ import { deckColors, LIME, PEARL, type RGBA } from "../../theme/colors";
 import { COLUMN_MATERIAL, FLAT, HULL_MATERIAL, clusterSpacingPx, columnHeightPx, columnRadiusPx } from "../layerParams";
 import { D2R, lerp, metersPerPixel } from "../math";
 import { HULL_MESH } from "../hull";
+import { fitLabels, type LabelViewport } from "../labels";
 import { shapeForType, spriteName, type IconMapping } from "../sprites";
 import { hullScale, hullShadowPolygon } from "../story/layers";
 import type { Fleet } from "../../state/vessels";
@@ -45,6 +46,8 @@ export interface ConsoleScene {
   hover: { lng: number; lat: number } | null;
   /** Temporary cut flag from the performance table. */
   hullEnabled: boolean;
+  /** Where things land on screen, for fitting cluster counts. Null when not clustered. */
+  labelViewport: LabelViewport | null;
 }
 
 export interface ConsoleHandlers {
@@ -231,6 +234,10 @@ export function consoleLayers(s: ConsoleScene, atlas: { url: string; mapping: Ic
   return layers;
 }
 
+const COUNT_OFFSET_Y = -16;
+const countText = (c: ConsoleCluster) => c.count.toLocaleString("en-US");
+let lastCounts: ConsoleCluster[] = [];
+
 function clusterLayers(s: ConsoleScene, clusters: ConsoleCluster[], h: ConsoleHandlers): Layer[] {
   const cap: RGBA = s.truth === "live" ? deckColors.clusterCapLive : deckColors.clusterCapRest;
   const radius = columnRadiusPx(s.zoom);
@@ -239,6 +246,11 @@ function clusterLayers(s: ConsoleScene, clusters: ConsoleCluster[], h: ConsoleHa
   const elevation = (c: ConsoleCluster) => columnHeightPx(c.count, spacing) * mpp;
   const version = `${s.zoom}`;
   const shadowDeg = mpp * 6 * 1e-5;
+  // Where columns bunch up their counts would overlap: the largest keep their label.
+  lastCounts =
+    radius >= 10 && s.labelViewport
+      ? fitLabels(clusters, s.labelViewport, (c) => [c.lng, c.lat, elevation(c)], countText, (c) => c.count, COUNT_OFFSET_Y, lastCounts)
+      : [];
 
   return [
     new ScatterplotLayer({
@@ -283,7 +295,7 @@ function clusterLayers(s: ConsoleScene, clusters: ConsoleCluster[], h: ConsoleHa
     }),
     new TextLayer({
       id: "cluster-count",
-      data: radius >= 10 ? clusters : [],
+      data: lastCounts,
       ...FLAT,
       fontFamily: '"Geist Mono Variable", monospace',
       fontWeight: 500,
@@ -291,9 +303,9 @@ function clusterLayers(s: ConsoleScene, clusters: ConsoleCluster[], h: ConsoleHa
       fontSettings: { sdf: true },
       getSize: 12,
       getPosition: (c) => [c.lng, c.lat, elevation(c)],
-      getText: (c) => c.count.toLocaleString("en-US"),
+      getText: countText,
       getColor: deckColors.clusterLabel,
-      getPixelOffset: [0, -16],
+      getPixelOffset: [0, COUNT_OFFSET_Y],
       outlineWidth: 2,
       outlineColor: deckColors.clusterLabelOutline,
       updateTriggers: { getPosition: version },
