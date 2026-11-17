@@ -82,18 +82,19 @@ History is the same request with a time cursor. Move it and the server sends the
 
 ```mermaid
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#0A3A47','primaryTextColor':'#F2F0E9','primaryBorderColor':'#8FB0B9','lineColor':'#8FB0B9','secondaryColor':'#2F423D','tertiaryColor':'#062A35','fontFamily':'ui-sans-serif, system-ui'}}}%%
-flowchart LR
-    F["<b>Feeder</b><br/>2,000 simulated ships at 1 Hz<br/>or a replay of real AIS data"]
+flowchart TB
+    F["<b>Feeder</b><br/>2,000 simulated ships at 1 Hz,<br/>or a replay of real AIS data"]
     N[("<b>NATS JetStream</b><br/>live stream")]
     I["<b>Ingest</b><br/>batch writer"]
-    T[("<b>TimescaleDB</b><br/>raw, 1 s, 1 min<br/>and 10 min tiers")]
-    G["<b>Gateway</b> (Go)<br/>one subscription per browser<br/>filter, diff, cluster, downsample"]
+    T[("<b>TimescaleDB</b><br/>raw, 1 s, 1 min and 10 min tiers")]
+    G["<b>Gateway</b> (Go)<br/>one subscription per browser:<br/>filter, diff, cluster, downsample"]
     B["<b>Browser</b><br/>React, deck.gl, MapLibre<br/>60 fps render loop"]
 
     F --> N
-    N --> I --> T
-    N -- live samples --> G
-    T -- history and series --> G
+    N --> I
+    I --> T
+    N -- "live samples" --> G
+    T -- "history and series" --> G
     B -- "Subscribe: bbox, zoom, time cursor" --> G
     G -- "Frames: protobuf over WebSocket" --> B
 
@@ -104,7 +105,7 @@ flowchart LR
 The contract is one request and one stream, defined in [`lens.proto`](proto/lens/v1/lens.proto):
 
 ```mermaid
-%%{init: {'theme':'base','themeVariables':{'primaryColor':'#0A3A47','primaryTextColor':'#F2F0E9','primaryBorderColor':'#8FB0B9','lineColor':'#8FB0B9','actorBkg':'#0A3A47','actorTextColor':'#F2F0E9','actorBorder':'#8FB0B9','signalColor':'#8FB0B9','signalTextColor':'#8FB0B9','noteBkgColor':'#B9F12F','noteTextColor':'#0A3A47','noteBorderColor':'#0A3A47'}}}%%
+%%{init: {'theme':'base','themeVariables':{'primaryColor':'#0A3A47','primaryTextColor':'#F2F0E9','primaryBorderColor':'#8FB0B9','lineColor':'#8FB0B9','actorBkg':'#0A3A47','actorTextColor':'#F2F0E9','actorBorder':'#8FB0B9','signalColor':'#8FB0B9','signalTextColor':'#8FB0B9','noteBkgColor':'#B9F12F','noteTextColor':'#0A3A47','noteBorderColor':'#0A3A47','loopTextColor':'#8FB0B9','labelBoxBkgColor':'#0A3A47','labelBoxBorderColor':'#8FB0B9','labelTextColor':'#F2F0E9'}}}%%
 sequenceDiagram
     participant B as Browser
     participant G as Gateway
