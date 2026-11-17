@@ -14,7 +14,9 @@ with the cost of every frame measured on screen.
 ![NATS](https://img.shields.io/badge/NATS-JetStream-0A3A47?logo=natsdotio&logoColor=F2F0E9)
 ![TimescaleDB](https://img.shields.io/badge/TimescaleDB-2.31-0A3A47?logo=timescale&logoColor=F2F0E9)
 
-[The idea](#the-idea) · [See it](#see-it) · [How it works](#how-it-works) · [Evidence](#evidence) · [Run it](#run-it)
+[![Watch the demo on YouTube](https://img.shields.io/badge/Watch%20the%203%20minute%20demo-YouTube-B9F12F?style=for-the-badge&logo=youtube&logoColor=0A3A47&labelColor=B9F12F&color=0A3A47)](https://youtu.be/gq7gGJkRxxQ)
+
+[Demo video](#watch-the-demo) · [The idea](#the-idea) · [See it](#see-it) · [How it works](#how-it-works) · [Evidence](#evidence) · [Run it](#run-it)
 
 <br/>
 
@@ -36,6 +38,16 @@ with the cost of every frame measured on screen.
 </table>
 
 <sub>Every number here is measured, and <a href="#evidence">Evidence</a> shows how to reproduce each one. The fleet is simulated.</sub>
+
+## Watch the demo
+
+<div align="center">
+
+<a href="https://youtu.be/gq7gGJkRxxQ"><img src="assets/demo-video.png" alt="Watch the PortLink Lens demo on YouTube. The telemetry card reads 111.7 times smaller, firehose 99,821 bytes per second against lens 894." width="820"/></a>
+
+**[Watch on YouTube](https://youtu.be/gq7gGJkRxxQ)**, three minutes: the idea, the live console, the lens against the firehose, history playback, and the architecture.
+
+</div>
 
 ## The idea
 
