@@ -14,6 +14,8 @@ with the cost of every frame measured on screen.
 ![NATS](https://img.shields.io/badge/NATS-JetStream-0A3A47?logo=natsdotio&logoColor=F2F0E9)
 ![TimescaleDB](https://img.shields.io/badge/TimescaleDB-2.31-0A3A47?logo=timescale&logoColor=F2F0E9)
 
+### 👉 New here? [Click to watch the 3 minute demo video](https://youtu.be/gq7gGJkRxxQ) 👈
+
 [![Watch the demo on YouTube](https://img.shields.io/badge/Watch%20the%203%20minute%20demo-YouTube-B9F12F?style=for-the-badge&logo=youtube&logoColor=0A3A47&labelColor=B9F12F&color=0A3A47)](https://youtu.be/gq7gGJkRxxQ)
 
 [Demo video](#watch-the-demo) · [The idea](#the-idea) · [See it](#see-it) · [How it works](#how-it-works) · [Evidence](#evidence) · [Run it](#run-it)
