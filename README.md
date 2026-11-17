@@ -14,7 +14,7 @@ with the cost of every frame measured on screen.
 ![NATS](https://img.shields.io/badge/NATS-JetStream-0A3A47?logo=natsdotio&logoColor=F2F0E9)
 ![TimescaleDB](https://img.shields.io/badge/TimescaleDB-2.31-0A3A47?logo=timescale&logoColor=F2F0E9)
 
-[The idea](#the-idea) · [See it](#see-it) · [How it works](#how-it-works) · [Evidence](#evidence) · [Run it](#run-it) · [Limits](#limits)
+[The idea](#the-idea) · [See it](#see-it) · [How it works](#how-it-works) · [Evidence](#evidence) · [Run it](#run-it)
 
 <br/>
 
@@ -35,7 +35,7 @@ with the cost of every frame measured on screen.
 </tr>
 </table>
 
-<sub>Every number here is measured, and <a href="#evidence">Evidence</a> shows how to reproduce each one. The ships are simulated: see <a href="#limits">Limits</a>.</sub>
+<sub>Every number here is measured, and <a href="#evidence">Evidence</a> shows how to reproduce each one. The fleet is simulated.</sub>
 
 ## The idea
 
@@ -46,6 +46,18 @@ PortLink Lens turns that around. Each time you pan, zoom or move the timeline, t
 > Front end performance at this scale is a backend contract problem. This project makes that contract visible: what the browser asked for, what the server sent, and what it cost.
 
 ## See it
+
+### Back through time, then down to one ship
+
+History is the same request with a time cursor. Move it and the server sends the past, in one minute buckets from far out and one second buckets up close. Select a ship and five instruments arrive with it, each a six hour series reduced to 600 points.
+
+<div align="center">
+<img src="assets/time-vessel.gif" alt="A ship's track draws backwards along the coast near San Francisco while a counter runs from zero to six hours ago and other ships trail fading wakes. The camera then descends to a lit 3D hull, and five instrument readings assemble around it: speed, engine RPM, fuel rate, engine temperature and fuel level." width="900"/>
+
+<sub>The opening story, scenes 4 and 5. Illustration data.</sub>
+</div>
+
+### The live console
 
 <table>
 <tr>
@@ -189,17 +201,6 @@ Open **http://localhost:8088** for the story, or **http://localhost:8088/console
 | [`web/src/scene/`](web/src/scene) | The deck.gl scene: story layers, console layers, render loop |
 | [`web/src/net/`](web/src/net) | WebSocket client and the measurements |
 | [`web/src/ui/`](web/src/ui) | Story copy, instrument card, timeline, ship panel |
-
-## Limits
-
-| Limit | What it means |
-|---|---|
-| **The ships are simulated** | The default fleet is 2,000 generated ships on four real West Coast routes. "Live" describes the pipeline, not the source |
-| **AIS replay is a recording** | `FEED_SOURCE=ais` replays a real day of US AIS data with real ship names. Its engine values are simulated, because AIS carries none |
-| **One machine** | Every number above comes from one Apple M5 laptop. Other hardware, Safari and a hosted deployment are not measured |
-| **The ratio is not one number** | It moved between about 105× and 164× in the console, depending on zoom and panning |
-| **Disk** | Raw 1 Hz history for 2,000 ships is large. Plan for about 50 GB, or run a smaller fleet |
-| **No accounts** | There is no sign in and no access control. It is a demo, not a product |
 
 ## Built with
 
