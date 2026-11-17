@@ -95,8 +95,8 @@ flowchart TB
     I --> T
     N -- "live samples" --> G
     T -- "history and series" --> G
-    B -- "Subscribe: bbox, zoom, time cursor" --> G
-    G -- "Frames: protobuf over WebSocket" --> B
+    B -- "Subscribe:<br/>bbox, zoom,<br/>time cursor" --> G
+    G -- "Frames:<br/>protobuf over<br/>WebSocket" --> B
 
     style B fill:#B9F12F,color:#0A3A47,stroke:#0A3A47
     style G fill:#124C5C,color:#F2F0E9,stroke:#B9F12F,stroke-width:2px
