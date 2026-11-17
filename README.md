@@ -84,7 +84,7 @@ History is the same request with a time cursor. Move it and the server sends the
 %%{init: {'theme':'base','themeVariables':{'primaryColor':'#0A3A47','primaryTextColor':'#F2F0E9','primaryBorderColor':'#8FB0B9','lineColor':'#8FB0B9','secondaryColor':'#2F423D','tertiaryColor':'#062A35','fontFamily':'ui-sans-serif, system-ui'}}}%%
 flowchart TB
     F["<b>Feeder</b><br/>2,000 simulated ships at 1 Hz,<br/>or a replay of real AIS data"]
-    N[("<b>NATS JetStream</b><br/>live stream")]
+    N[("<b>NATS JetStream</b><br/>the live message stream")]
     I["<b>Ingest</b><br/>batch writer"]
     T[("<b>TimescaleDB</b><br/>raw, 1 s, 1 min and 10 min tiers")]
     G["<b>Gateway</b> (Go)<br/>one subscription per browser:<br/>filter, diff, cluster, downsample"]
